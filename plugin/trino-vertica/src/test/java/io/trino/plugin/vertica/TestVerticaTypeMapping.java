@@ -162,6 +162,7 @@ public class TestVerticaTypeMapping
     public void testDecimal()
     {
         SqlDataTypeTest.create()
+                .addRoundTrip("decimal(3, 0)", "NULL", createDecimalType(3, 0), "CAST(NULL AS decimal(3, 0))")
                 .addRoundTrip("decimal(3, 0)", "CAST('193' AS decimal(3, 0))", createDecimalType(3, 0), "CAST('193' AS decimal(3, 0))")
                 .addRoundTrip("decimal(3, 0)", "CAST('19' AS decimal(3, 0))", createDecimalType(3, 0), "CAST('19' AS decimal(3, 0))")
                 .addRoundTrip("decimal(3, 0)", "CAST('-193' AS decimal(3, 0))", createDecimalType(3, 0), "CAST('-193' AS decimal(3, 0))")
@@ -353,18 +354,20 @@ public class TestVerticaTypeMapping
     @Test
     public void testDate()
     {
+        // Note: there is identical test for PostgreSQL
+
         ZoneId jvmZone = ZoneId.systemDefault();
         checkState(jvmZone.getId().equals("America/Bahia_Banderas"), "This test assumes certain JVM time zone");
         LocalDate dateOfLocalTimeChangeForwardAtMidnightInJvmZone = LocalDate.of(1970, 1, 1);
-        checkIsGap(jvmZone, dateOfLocalTimeChangeForwardAtMidnightInJvmZone.atStartOfDay());
+        verify(jvmZone.getRules().getValidOffsets(dateOfLocalTimeChangeForwardAtMidnightInJvmZone.atStartOfDay()).isEmpty());
 
         ZoneId someZone = ZoneId.of("Europe/Vilnius");
         LocalDate dateOfLocalTimeChangeForwardAtMidnightInSomeZone = LocalDate.of(1983, 4, 1);
-        checkIsGap(someZone, dateOfLocalTimeChangeForwardAtMidnightInSomeZone.atStartOfDay());
+        verify(someZone.getRules().getValidOffsets(dateOfLocalTimeChangeForwardAtMidnightInSomeZone.atStartOfDay()).isEmpty());
         LocalDate dateOfLocalTimeChangeBackwardAtMidnightInSomeZone = LocalDate.of(1983, 10, 1);
-        checkIsDoubled(someZone, dateOfLocalTimeChangeBackwardAtMidnightInSomeZone.atStartOfDay().minusMinutes(1));
+        verify(someZone.getRules().getValidOffsets(dateOfLocalTimeChangeBackwardAtMidnightInSomeZone.atStartOfDay().minusMinutes(1)).size() == 2);
 
-        DataTypeTest testCases = DataTypeTest.create(true)
+        DataTypeTest testCases = DataTypeTest.create()
                 .addRoundTrip(dateDataType(), LocalDate.of(1952, 4, 3)) // before epoch
                 .addRoundTrip(dateDataType(), LocalDate.of(1970, 1, 1))
                 .addRoundTrip(dateDataType(), LocalDate.of(1970, 2, 3))
@@ -413,6 +416,7 @@ public class TestVerticaTypeMapping
         SqlDataTypeTest.create()
                 .addRoundTrip("double precision", "NULL", DOUBLE, "CAST(NULL AS double)")
                 .addRoundTrip("double precision", "1.0E100", DOUBLE, "1.0E100")
+                .addRoundTrip("double precision", "123.456E10", DOUBLE, "123.456E10")
                 .addRoundTrip("double precision", "'NaN'::double precision", DOUBLE, "nan()")
                 .addRoundTrip("double precision", "'+Infinity'::double precision", DOUBLE, "+infinity()")
                 .addRoundTrip("double precision", "'-Infinity'::double precision", DOUBLE, "-infinity()")
@@ -421,6 +425,7 @@ public class TestVerticaTypeMapping
         SqlDataTypeTest.create()
                 .addRoundTrip("double", "NULL", DOUBLE, "CAST(NULL AS double)")
                 .addRoundTrip("double", "1.0E100", DOUBLE, "1.0E100")
+                .addRoundTrip("double", "123.456E10", DOUBLE, "123.456E10")
                 .addRoundTrip("double", "nan()", DOUBLE, "nan()")
                 .addRoundTrip("double", "+infinity()", DOUBLE, "+infinity()")
                 .addRoundTrip("double", "-infinity()", DOUBLE, "-infinity()")

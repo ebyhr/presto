@@ -22,6 +22,7 @@ import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.StatsCollecting;
 import io.trino.plugin.jdbc.WriteMapping;
+import io.trino.plugin.jdbc.mapping.IdentifierMapping;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
@@ -87,12 +88,10 @@ import static java.util.Locale.ENGLISH;
 public class VerticaClient
         extends BaseJdbcClient
 {
-    private static final int MAX_SUPPORTED_TEMPORAL_PRECISION = 8;
-
     @Inject
-    public VerticaClient(BaseJdbcConfig config, @StatsCollecting ConnectionFactory connectionFactory)
+    public VerticaClient(BaseJdbcConfig config, @StatsCollecting ConnectionFactory connectionFactory, IdentifierMapping identifierMapping)
     {
-        super(config, "\"", connectionFactory);
+        super(config, "\"", connectionFactory, identifierMapping);
     }
 
     @Override
@@ -180,18 +179,20 @@ public class VerticaClient
             return WriteMapping.sliceMapping(dataType, longDecimalWriteFunction(decimalType));
         }
         if (type instanceof CharType) {
+            // TODO: Handle size difference between codepoints in Trino and byte length in Vertica
             int length = ((CharType) type).getLength();
-            checkArgument(length <= 65000, "Char length is greater than 65,000");
+            checkArgument(length <= 65000, "Maximum char length in Vertica is 65,000");
             return WriteMapping.sliceMapping("char(" + length + ")", charWriteFunction());
         }
         if (type instanceof VarcharType) {
+            // TODO: Handle size difference between codepoints in Trino and byte length in Vertica
             VarcharType varcharType = (VarcharType) type;
             String dataType;
             if (varcharType.isUnbounded()) {
                 dataType = "long varchar";
             }
             else {
-                checkArgument(varcharType.getBoundedLength() <= 32_000_000, "Varchar length is greater than 32,000,000");
+                checkArgument(varcharType.getBoundedLength() <= 32_000_000, "Maximum varchar length in Vertica is 32,000,000");
                 dataType = "long varchar(" + varcharType.getBoundedLength() + ")";
             }
             return WriteMapping.sliceMapping(dataType, varcharWriteFunction());

@@ -20,7 +20,9 @@ import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import java.util.Optional;
@@ -31,6 +33,7 @@ import static io.trino.testing.MaterializedResult.resultBuilder;
 import static io.trino.testing.assertions.Assert.assertEquals;
 import static io.trino.testing.sql.TestTable.randomTableSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestVerticaConnectorTest
         extends BaseJdbcConnectorTest
@@ -159,6 +162,7 @@ public class TestVerticaConnectorTest
     }
 
     @Test
+    @Override
     public void testDescribeTable()
     {
         // shippriority column's type is BIGINT, not INTEGER
@@ -219,12 +223,8 @@ public class TestVerticaConnectorTest
     @Override
     public void testDropColumn()
     {
-        String tableName = "test_drop_column_" + randomTableSuffix();
-        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 123 x, 456 y, 111 a", 1);
-
-        assertQueryFails("ALTER TABLE " + tableName + " DROP COLUMN x", "This connector does not support dropping columns");
-
-        assertUpdate("DROP TABLE " + tableName);
+        assertThatThrownBy(super::testDropColumn).hasMessage("This connector does not support dropping columns");
+        throw new SkipException("This connector does not support dropping columns");
     }
 
     @Override
@@ -250,5 +250,11 @@ public class TestVerticaConnectorTest
     private void execute(String sql)
     {
         verticaServer.execute(sql);
+    }
+
+    @Override
+    protected SqlExecutor onRemoteDatabase()
+    {
+        return verticaServer::execute;
     }
 }
